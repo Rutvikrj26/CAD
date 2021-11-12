@@ -1,0 +1,662 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no" ?><w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:body><w:p><w:pPr><w:pStyle w:val="code"/></w:pPr><w:r><w:t><![CDATA[classdef polygon < matlab.apps.AppBase
+
+    % Properties that correspond to app components
+    properties (Access = public)
+        UIFigure                  matlab.ui.Figure
+        UIAxes                    matlab.ui.control.UIAxes
+        noofsidesEditFieldLabel   matlab.ui.control.Label
+        noofsidesEditField        matlab.ui.control.NumericEditField
+        PlotButton                matlab.ui.control.Button
+        TranslationSwitchLabel    matlab.ui.control.Label
+        TranslationSwitch         matlab.ui.control.Switch
+        UITable                   matlab.ui.control.Table
+        RotationSwitchLabel       matlab.ui.control.Label
+        RotationSwitch            matlab.ui.control.Switch
+        UITable_2                 matlab.ui.control.Table
+        StartButton               matlab.ui.control.Button
+        StatusEditFieldLabel      matlab.ui.control.Label
+        StatusEditField           matlab.ui.control.EditField
+        HeightEditFieldLabel      matlab.ui.control.Label
+        HeightEditField           matlab.ui.control.NumericEditField
+        UITable_3                 matlab.ui.control.Table
+        TothepointLabel           matlab.ui.control.Label
+        AlongdirectionLabel       matlab.ui.control.Label
+        PassingfrompointLabel     matlab.ui.control.Label
+        ScaleSwitchLabel          matlab.ui.control.Label
+        ScaleSwitch               matlab.ui.control.Switch
+        AngleSliderLabel          matlab.ui.control.Label
+        AngleSlider               matlab.ui.control.Slider
+        UITable_4                 matlab.ui.control.Table
+        ShearSwitchLabel          matlab.ui.control.Label
+        ShearSwitch               matlab.ui.control.Switch
+        UITable2                  matlab.ui.control.Table
+        Switch                    matlab.ui.control.Switch
+        UITable_5                 matlab.ui.control.Table
+        AboutpointLabel           matlab.ui.control.Label
+        ByfactorLabel             matlab.ui.control.Label
+        UITable_6                 matlab.ui.control.Table
+        ByfactorLabel_2           matlab.ui.control.Label
+        AboutpointLabel_2         matlab.ui.control.Label
+        SideLengthEditFieldLabel  matlab.ui.control.Label
+        SideLengthEditField       matlab.ui.control.NumericEditField
+    end
+
+    
+    methods (Access = private)
+        function T = RTransformation(app)
+            D = app.UITable_2.Data;
+            P = app.UITable_3.Data;
+            theta = app.AngleSlider.Value;
+            Dmag = sqrt((D(1)^2) + (D(2)^2) + (D(3)^2));
+            Dnorm = D/Dmag;
+            TT = [1 0 0 0;0 1 0 0;0 0 1 0;-P(1) -P(2) -P(3) 1];
+            T1 = eye(4);
+            T2 = eye(4);
+            TR = eye(4);
+            if D(1) == 0 && D(2) == 0 && D(3) == 0
+                app.StatusEditField.Value = "Enter non zeros direction vector";
+            elseif D(1) == 0 && D(2) == 0
+                TR = rotaxis(app,'z',theta);
+            elseif D(1) == 0 && D(3) == 0
+                TR = rotaxis(app,'y',theta);
+            elseif D(2) == 0 && D(3) == 0
+                TR = rotaxis(app,'x',theta);
+            elseif D(1) == 0
+                alpha = asind(-Dnorm(3));
+                T2 = rotaxis(app,'x',alpha);
+                TR = rotaxis(app,'y',theta);
+            elseif D(2) == 0
+                alpha = asind(Dnorm(3));
+                T2 = rotaxis(app,'y',alpha);
+                TR = rotaxis(app,'x',theta);
+            elseif D(3) == 0
+                alpha = asind(-Dnorm(2));
+                T2 = rotaxis(app,'z',alpha);
+                TR = rotaxis(app,'x',theta);
+            else
+                a = -Dnorm(3) / sqrt((Dnorm(2)^2) + (Dnorm(3)^2));
+                alpha = asind(a);
+                T1 = rotaxis(app,'x',alpha);
+                beta = -asind(sqrt((Dnorm(2)^2) + (Dnorm(3)^2)));
+                T2 = rotaxis(app,'z',beta);
+                TR = rotaxis(app,'x',theta);
+            end
+            Ttransform = TT*T1*T2;
+            T = Ttransform*TR/Ttransform;
+        end
+    
+        function K = TTransformation(app)
+            Translation_vector = app.UITable.Data;
+            K = eye(4);
+            K(4,1:3) = Translation_vector;
+        end
+        function K = shear(app)
+            Val = app.UITable2.Data;
+            V2 = app.UITable_6.Data;
+            TT = eye(4);
+            TS = eye(4);
+            TS(1:3,1:3) = Val;
+            TT(4,1:3) = TT(4,1:3) - V2;
+            K = TT*TS/TT;
+        end
+        function K = scale(app)
+            V1 = app.UITable_4.Data;
+            V2 = app.UITable_5.Data;
+            TT = eye(4);
+            TS = eye(4);
+            for i = 1:3
+                TS(i,i) = V1(i);
+            end
+            TT(4,1:3) = TT(4,1:3) - V2;
+            K = TT*TS/TT;
+        end
+        function K = rotaxis(app,ax,theta)
+        % theta in degree
+            c = cosd(theta);
+            s = sind(theta);
+            if ax == "z"
+                K = [c s 0 0;-s c 0 0;0 0 1 0; 0 0 0 1];
+            elseif ax == "x"
+                K = [1 0 0 0;0 c s 0;0 -s c 0; 0 0 0 1];
+            else
+                K = [c 0 -s 0;0 1 0 0;s 0 c 0; 0 0 0 1];
+            end
+        end    
+    
+        function poly(app)
+            n = app.noofsidesEditField.Value/2;
+            a = -pi : pi/n : pi;                                % Define Corners
+            ph = pi/4;                                          % Define Angular Orientation (‘Phase’)
+            s = app.SideLengthEditField.Value;
+            h = app.HeightEditField.Value/2;
+            x = s*[cos(a+ph); cos(a+ph)]/cos(ph);
+            y = s*[sin(a+ph); sin(a+ph)]/sin(ph);
+            z = h*[-ones(size(a)); ones(size(a))];
+            X = [x(1,:)' y(1,:)' z(1,:)' ones(length(a),1);x(2,:)' y(2,:)' z(2,:)' ones(length(a),1)];
+            
+            if strcmp(app.TranslationSwitch.Value,'On')
+                T = app.TTransformation;
+                X = X*T;
+            end
+            if strcmp(app.RotationSwitch.Value,'On')
+                T = app.RTransformation;
+                X = X*T;
+            end
+            if strcmp(app.ScaleSwitch.Value,'On')
+                T = app.scale;
+                X = X*T;
+            end
+            if strcmp(app.ShearSwitch.Value,'On')
+                T = app.shear;
+                X = X*T;
+            end
+            X = X./X(:,4);
+            x = [X(1:length(a),1)';X(length(a)+1:2*length(a),1)'];
+            y = [X(1:length(a),2)';X(length(a)+1:2*length(a),2)'];
+            z = [X(1:length(a),3)';X(length(a)+1:2*length(a),3)'];
+            surf(app.UIAxes,x, y, z, 'FaceColor','g');                      % Plot Hexagonal Cylynder
+            hold (app.UIAxes, 'on')
+            patch(app.UIAxes,x', y', z', 'y');            
+        end
+    end
+    
+
+    methods (Access = private)
+
+        % Button pushed function: PlotButton
+        function PlotButtonPushed(app, event)
+            app.StatusEditField.Value = "Done";
+            hold(app.UIAxes, 'off')
+            app.poly
+        end
+
+        % Value changed function: TranslationSwitch
+        function TranslationSwitchValueChanged(app, event)
+            value = app.TranslationSwitch.Value;
+            if strcmp(value,'On')
+                app.UITable.Visible = 'on';
+                app.TothepointLabel.Visible = 'on';
+            else
+                app.UITable.Visible = 'off';
+                app.TothepointLabel.Visible = 'off';
+                app.UITable.Data = [0 0 0];
+            end
+        end
+
+        % Value changed function: RotationSwitch
+        function RotationSwitchValueChanged(app, event)
+            value = app.RotationSwitch.Value;
+            if strcmp(value,'On')
+                app.UITable_2.Visible = 'on';
+                app.AlongdirectionLabel.Visible = 'on';
+                app.PassingfrompointLabel.Visible = 'on';
+                app.UITable_3.Visible = 'on';
+                app.AngleSlider.Visible = 'on';
+                app.AngleSliderLabel.Visible = 'on';
+            else
+                app.UITable_2.Visible = 'off';
+                app.AlongdirectionLabel.Visible = 'off';
+                app.PassingfrompointLabel.Visible = 'off';
+                app.UITable_3.Visible = 'off';
+                app.AngleSlider.Visible = 'off';
+                app.AngleSliderLabel.Visible = 'off';
+                app.UITable_2.Data = [0 0 0];
+            end
+            
+        end
+
+        % Button pushed function: StartButton
+        function StartButtonPushed(app, event)
+            app.UITable.Data = [0 0 0];
+            app.UITable_2.Data = [0 0 0];
+            app.UITable_3.Data = [0 0 0];
+            app.UITable_4.Data = [0 0 0];
+            app.UITable_5.Data = [0 0 0];
+            app.UITable2.Data = [1 0 0;0 1 0;0 0 1];
+            app.UITable_6.Data = [0 0 0];
+            
+            app.SideLengthEditField.Value = 0;
+            app.AngleSlider.Value = 0;
+            app.HeightEditField.Value = 0;
+            app.noofsidesEditField.Enable = 'on';
+            app.noofsidesEditFieldLabel.Enable = 'on';
+            app.StatusEditField.Enable = 'on';
+            app.StatusEditFieldLabel.Enable = 'on';
+            
+            app.UIAxes.cla
+            app.noofsidesEditField.Value = 0;
+            app.StatusEditField.Value = "Enter number of sides";
+        end
+
+        % Value changed function: noofsidesEditField
+        function noofsidesEditFieldValueChanged(app, event)
+            value = app.noofsidesEditField.Value;
+            if (value > 0 && rem(value,1) == 0)
+                app.HeightEditFieldLabel.Enable = 'on';
+                app.HeightEditField.Enable = 'on';
+                app.StatusEditField.Value = "Enter height";
+            elseif rem(value,1) > 0
+                app.StatusEditField.Value = "Enter Integer as number of sides";
+            end
+                
+        end
+
+        % Value changed function: AngleSlider
+        function AngleSliderValueChanged(app, event)
+            app.PlotButtonPushed;
+        end
+
+        % Value changed function: ScaleSwitch
+        function ScaleSwitchValueChanged(app, event)
+            value = app.ScaleSwitch.Value;
+            if strcmp(value,"On")
+                app.Switch.Visible = 'On';
+                app.ByfactorLabel.Visible = 'On';
+                app.UITable_4.Visible = 'On';
+                app.AboutpointLabel.Visible = 'On';
+                app.UITable_5.Visible = 'On';
+            elseif strcmp(value,"Off")
+                app.Switch.Visible = 'Off';
+                app.ByfactorLabel.Visible = 'Off';
+                app.UITable_4.Visible = 'Off';
+                app.AboutpointLabel.Visible = 'Off';
+                app.UITable_5.Visible = 'Off';
+                app.UITable_4.Data = [0 0 0];
+                app.UITable_5.Data = [0 0 0];
+            end
+        end
+
+        % Value changed function: Switch
+        function SwitchValueChanged(app, event)
+            value = app.Switch.Value;
+            if strcmp(value,"Uniform")
+                app.UITable_4.ColumnEditable = [true false false];
+                app.UITable_4.Data(2:3) = [app.UITable_4.Data(1) app.UITable_4.Data(1)];
+            elseif strcmp(value,"Non uniform")
+                app.UITable_4.ColumnEditable = [true true true];
+            end
+        end
+
+        % Cell edit callback: UITable_4
+        function UITable_4CellEdit(app, event)
+            if strcmp(app.Switch.Value,"Uniform")
+                app.UITable_4.Data(2:3) = [app.UITable_4.Data(1) app.UITable_4.Data(1)];
+            end
+        end
+
+        % Value changed function: ShearSwitch
+        function ShearSwitchValueChanged(app, event)
+            value = app.ShearSwitch.Value;
+            if strcmp(value,"On")
+                app.UITable2.Visible = 'On';
+                app.ByfactorLabel_2.Visible = 'On';
+                app.AboutpointLabel_2.Visible = 'On';
+                app.UITable_6.Visible = 'On';
+            elseif strcmp(value,"Off")
+                app.UITable2.Visible = 'Off';
+                app.ByfactorLabel_2.Visible = 'Off';
+                app.AboutpointLabel_2.Visible = 'Off';
+                app.UITable_6.Visible = 'Off';
+                app.UITable_6.Data = [0 0 0];
+                app.UITable2.Data = [1 0 0;0 1 0;0 0 1];
+            end
+        end
+
+        % Value changed function: SideLengthEditField
+        function SideLengthEditFieldValueChanged(app, event)
+            value = app.SideLengthEditField.Value;
+            if (value > 0)
+                app.TranslationSwitch.Enable = 'on';
+                app.TranslationSwitchLabel.Enable = 'on';
+                app.UITable.Enable = 'on';
+                app.RotationSwitch.Enable = 'on';
+                app.RotationSwitchLabel.Enable = 'on';
+                app.UITable_2.Enable = 'on';
+                app.UITable_3.Enable = 'on';
+                app.AngleSlider.Enable = 'on';
+                app.AngleSliderLabel.Enable = 'on';
+                app.PlotButton.Enable = 'on';
+                app.StatusEditField.Value = "Press Plot";
+                app.ScaleSwitch.Enable = 'on';
+                app.ScaleSwitchLabel.Enable = 'on';
+                app.ShearSwitch.Enable = 'on';
+                app.ShearSwitchLabel.Enable = 'on';
+                app.Switch.Enable = 'on';
+                app.ByfactorLabel.Enable = 'on';
+                app.UITable_4.Enable = 'on';
+                app.AboutpointLabel.Enable = 'on';
+                app.UITable_5.Enable = 'on';            
+                app.UITable2.Enable = 'on';
+                app.PlotButton.Enable = 'on';
+                app.ByfactorLabel_2.Enable = 'on';
+                app.AboutpointLabel_2.Enable = 'on';
+                app.UITable_6.Enable = 'on';
+            elseif value <= 0
+                app.StatusEditField.Value = "Enter positive number as side length";
+            end
+        end
+
+        % Value changed function: HeightEditField
+        function HeightEditFieldValueChanged(app, event)
+            value = app.HeightEditField.Value;
+            if (value > 0)
+                app.SideLengthEditField.Enable = 'on';
+                app.SideLengthEditFieldLabel.Enable = 'on';
+                app.StatusEditField.Value = "Enter side length";
+            elseif value <= 0
+                app.StatusEditField.Value = "Enter positive number as height";
+            end
+        end
+    end
+
+    % App initialization and construction
+    methods (Access = private)
+
+        % Create UIFigure and components
+        function createComponents(app)
+
+            % Create UIFigure
+            app.UIFigure = uifigure;
+            app.UIFigure.Position = [100 100 1100 667];
+            app.UIFigure.Name = 'UI Figure';
+
+            % Create UIAxes
+            app.UIAxes = uiaxes(app.UIFigure);
+            xlabel(app.UIAxes, 'X')
+            ylabel(app.UIAxes, 'Y')
+            app.UIAxes.DataAspectRatio = [1 1 1];
+            app.UIAxes.PlotBoxAspectRatio = [1 1 1];
+            app.UIAxes.XGrid = 'on';
+            app.UIAxes.YGrid = 'on';
+            app.UIAxes.ZGrid = 'on';
+            app.UIAxes.View = [45 45];
+            app.UIAxes.Position = [1 61 521 582];
+
+            % Create noofsidesEditFieldLabel
+            app.noofsidesEditFieldLabel = uilabel(app.UIFigure);
+            app.noofsidesEditFieldLabel.HorizontalAlignment = 'right';
+            app.noofsidesEditFieldLabel.Enable = 'off';
+            app.noofsidesEditFieldLabel.Position = [578 582 63 22];
+            app.noofsidesEditFieldLabel.Text = 'no of sides';
+
+            % Create noofsidesEditField
+            app.noofsidesEditField = uieditfield(app.UIFigure, 'numeric');
+            app.noofsidesEditField.ValueChangedFcn = createCallbackFcn(app, @noofsidesEditFieldValueChanged, true);
+            app.noofsidesEditField.Enable = 'off';
+            app.noofsidesEditField.Position = [656 582 100 22];
+
+            % Create PlotButton
+            app.PlotButton = uibutton(app.UIFigure, 'push');
+            app.PlotButton.ButtonPushedFcn = createCallbackFcn(app, @PlotButtonPushed, true);
+            app.PlotButton.Enable = 'off';
+            app.PlotButton.Position = [32 23 100 22];
+            app.PlotButton.Text = 'Plot';
+
+            % Create TranslationSwitchLabel
+            app.TranslationSwitchLabel = uilabel(app.UIFigure);
+            app.TranslationSwitchLabel.HorizontalAlignment = 'center';
+            app.TranslationSwitchLabel.Enable = 'off';
+            app.TranslationSwitchLabel.Position = [635 439 64 22];
+            app.TranslationSwitchLabel.Text = 'Translation';
+
+            % Create TranslationSwitch
+            app.TranslationSwitch = uiswitch(app.UIFigure, 'slider');
+            app.TranslationSwitch.ValueChangedFcn = createCallbackFcn(app, @TranslationSwitchValueChanged, true);
+            app.TranslationSwitch.Enable = 'off';
+            app.TranslationSwitch.Position = [643 476 45 20];
+
+            % Create UITable
+            app.UITable = uitable(app.UIFigure);
+            app.UITable.ColumnName = {'X'; 'Y'; 'Z'};
+            app.UITable.RowName = {};
+            app.UITable.ColumnEditable = true;
+            app.UITable.Enable = 'off';
+            app.UITable.Visible = 'off';
+            app.UITable.Position = [545 361 242 46];
+
+            % Create RotationSwitchLabel
+            app.RotationSwitchLabel = uilabel(app.UIFigure);
+            app.RotationSwitchLabel.HorizontalAlignment = 'center';
+            app.RotationSwitchLabel.Enable = 'off';
+            app.RotationSwitchLabel.Position = [926 584 50 22];
+            app.RotationSwitchLabel.Text = 'Rotation';
+
+            % Create RotationSwitch
+            app.RotationSwitch = uiswitch(app.UIFigure, 'slider');
+            app.RotationSwitch.ValueChangedFcn = createCallbackFcn(app, @RotationSwitchValueChanged, true);
+            app.RotationSwitch.Enable = 'off';
+            app.RotationSwitch.Position = [927 621 45 20];
+
+            % Create UITable_2
+            app.UITable_2 = uitable(app.UIFigure);
+            app.UITable_2.ColumnName = {'X'; 'Y'; 'Z'};
+            app.UITable_2.RowName = {};
+            app.UITable_2.ColumnEditable = true;
+            app.UITable_2.Enable = 'off';
+            app.UITable_2.Visible = 'off';
+            app.UITable_2.Position = [829 504 242 46];
+
+            % Create StartButton
+            app.StartButton = uibutton(app.UIFigure, 'push');
+            app.StartButton.ButtonPushedFcn = createCallbackFcn(app, @StartButtonPushed, true);
+            app.StartButton.Position = [619 620 100 22];
+            app.StartButton.Text = 'Start';
+
+            % Create StatusEditFieldLabel
+            app.StatusEditFieldLabel = uilabel(app.UIFigure);
+            app.StatusEditFieldLabel.HorizontalAlignment = 'right';
+            app.StatusEditFieldLabel.Enable = 'off';
+            app.StatusEditFieldLabel.Position = [252 23 39 22];
+            app.StatusEditFieldLabel.Text = 'Status';
+
+            % Create StatusEditField
+            app.StatusEditField = uieditfield(app.UIFigure, 'text');
+            app.StatusEditField.Editable = 'off';
+            app.StatusEditField.Enable = 'off';
+            app.StatusEditField.Position = [306 23 180 22];
+
+            % Create HeightEditFieldLabel
+            app.HeightEditFieldLabel = uilabel(app.UIFigure);
+            app.HeightEditFieldLabel.HorizontalAlignment = 'right';
+            app.HeightEditFieldLabel.Enable = 'off';
+            app.HeightEditFieldLabel.Position = [596 549 40 22];
+            app.HeightEditFieldLabel.Text = 'Height';
+
+            % Create HeightEditField
+            app.HeightEditField = uieditfield(app.UIFigure, 'numeric');
+            app.HeightEditField.ValueChangedFcn = createCallbackFcn(app, @HeightEditFieldValueChanged, true);
+            app.HeightEditField.Enable = 'off';
+            app.HeightEditField.Position = [651 549 100 22];
+
+            % Create UITable_3
+            app.UITable_3 = uitable(app.UIFigure);
+            app.UITable_3.ColumnName = {'X'; 'Y'; 'Z'};
+            app.UITable_3.RowName = {};
+            app.UITable_3.ColumnEditable = true;
+            app.UITable_3.Enable = 'off';
+            app.UITable_3.Visible = 'off';
+            app.UITable_3.Position = [829 361 242 46];
+
+            % Create TothepointLabel
+            app.TothepointLabel = uilabel(app.UIFigure);
+            app.TothepointLabel.HorizontalAlignment = 'center';
+            app.TothepointLabel.Enable = 'off';
+            app.TothepointLabel.Visible = 'off';
+            app.TothepointLabel.Position = [633 418 67 22];
+            app.TothepointLabel.Text = 'To the point';
+
+            % Create AlongdirectionLabel
+            app.AlongdirectionLabel = uilabel(app.UIFigure);
+            app.AlongdirectionLabel.HorizontalAlignment = 'center';
+            app.AlongdirectionLabel.Enable = 'off';
+            app.AlongdirectionLabel.Visible = 'off';
+            app.AlongdirectionLabel.Position = [908 561 85 22];
+            app.AlongdirectionLabel.Text = 'Along direction';
+
+            % Create PassingfrompointLabel
+            app.PassingfrompointLabel = uilabel(app.UIFigure);
+            app.PassingfrompointLabel.HorizontalAlignment = 'center';
+            app.PassingfrompointLabel.Enable = 'off';
+            app.PassingfrompointLabel.Visible = 'off';
+            app.PassingfrompointLabel.Position = [893 418 105 22];
+            app.PassingfrompointLabel.Text = 'Passing from point';
+
+            % Create AngleSliderLabel
+            app.AngleSliderLabel = uilabel(app.UIFigure);
+            app.AngleSliderLabel.HorizontalAlignment = 'right';
+            app.AngleSliderLabel.Enable = 'off';
+            app.AngleSliderLabel.Visible = 'off';
+            app.AngleSliderLabel.Position = [838 467 36 22];
+            app.AngleSliderLabel.Text = 'Angle';
+
+            % Create AngleSlider
+            app.AngleSlider = uislider(app.UIFigure);
+            app.AngleSlider.Limits = [0 360];
+            app.AngleSlider.ValueChangedFcn = createCallbackFcn(app, @AngleSliderValueChanged, true);
+            app.AngleSlider.Enable = 'off';
+            app.AngleSlider.Visible = 'off';
+            app.AngleSlider.Position = [895 476 150 3];
+
+            % Create ScaleSwitchLabel
+            app.ScaleSwitchLabel = uilabel(app.UIFigure);
+            app.ScaleSwitchLabel.HorizontalAlignment = 'center';
+            app.ScaleSwitchLabel.Enable = 'off';
+            app.ScaleSwitchLabel.Position = [647 273 35 22];
+            app.ScaleSwitchLabel.Text = 'Scale';
+
+            % Create ScaleSwitch
+            app.ScaleSwitch = uiswitch(app.UIFigure, 'slider');
+            app.ScaleSwitch.ValueChangedFcn = createCallbackFcn(app, @ScaleSwitchValueChanged, true);
+            app.ScaleSwitch.Enable = 'off';
+            app.ScaleSwitch.Position = [641 310 45 20];
+
+            % Create UITable_4
+            app.UITable_4 = uitable(app.UIFigure);
+            app.UITable_4.ColumnName = {'X'; 'Y'; 'Z'};
+            app.UITable_4.RowName = {};
+            app.UITable_4.ColumnEditable = true;
+            app.UITable_4.CellEditCallback = createCallbackFcn(app, @UITable_4CellEdit, true);
+            app.UITable_4.Enable = 'off';
+            app.UITable_4.Visible = 'off';
+            app.UITable_4.Position = [546 138 242 46];
+
+            % Create Switch
+            app.Switch = uiswitch(app.UIFigure, 'slider');
+            app.Switch.Items = {'Non uniform', 'Uniform'};
+            app.Switch.ValueChangedFcn = createCallbackFcn(app, @SwitchValueChanged, true);
+            app.Switch.Enable = 'off';
+            app.Switch.Visible = 'off';
+            app.Switch.Position = [645 237 45 20];
+            app.Switch.Value = 'Non uniform';
+
+            % Create ShearSwitchLabel
+            app.ShearSwitchLabel = uilabel(app.UIFigure);
+            app.ShearSwitchLabel.HorizontalAlignment = 'center';
+            app.ShearSwitchLabel.Enable = 'off';
+            app.ShearSwitchLabel.Position = [926 273 38 22];
+            app.ShearSwitchLabel.Text = 'Shear';
+
+            % Create ShearSwitch
+            app.ShearSwitch = uiswitch(app.UIFigure, 'slider');
+            app.ShearSwitch.ValueChangedFcn = createCallbackFcn(app, @ShearSwitchValueChanged, true);
+            app.ShearSwitch.Enable = 'off';
+            app.ShearSwitch.Position = [921 310 45 20];
+
+            % Create UITable2
+            app.UITable2 = uitable(app.UIFigure);
+            app.UITable2.ColumnName = {'X'; 'Y'; 'Z'};
+            app.UITable2.RowName = {};
+            app.UITable2.ColumnEditable = true;
+            app.UITable2.Enable = 'off';
+            app.UITable2.Visible = 'off';
+            app.UITable2.Position = [826 138 242 88];
+
+            % Create UITable_5
+            app.UITable_5 = uitable(app.UIFigure);
+            app.UITable_5.ColumnName = {'X'; 'Y'; 'Z'};
+            app.UITable_5.RowName = {};
+            app.UITable_5.ColumnEditable = true;
+            app.UITable_5.Enable = 'off';
+            app.UITable_5.Visible = 'off';
+            app.UITable_5.Position = [545 55 242 46];
+
+            % Create AboutpointLabel
+            app.AboutpointLabel = uilabel(app.UIFigure);
+            app.AboutpointLabel.HorizontalAlignment = 'center';
+            app.AboutpointLabel.Enable = 'off';
+            app.AboutpointLabel.Visible = 'off';
+            app.AboutpointLabel.Position = [633 109 66 22];
+            app.AboutpointLabel.Text = 'About point';
+
+            % Create ByfactorLabel
+            app.ByfactorLabel = uilabel(app.UIFigure);
+            app.ByfactorLabel.HorizontalAlignment = 'center';
+            app.ByfactorLabel.Enable = 'off';
+            app.ByfactorLabel.Visible = 'off';
+            app.ByfactorLabel.Position = [640 193 53 22];
+            app.ByfactorLabel.Text = 'By factor';
+
+            % Create UITable_6
+            app.UITable_6 = uitable(app.UIFigure);
+            app.UITable_6.ColumnName = {'X'; 'Y'; 'Z'};
+            app.UITable_6.RowName = {};
+            app.UITable_6.ColumnEditable = true;
+            app.UITable_6.Enable = 'off';
+            app.UITable_6.Visible = 'off';
+            app.UITable_6.Position = [828 55 242 46];
+
+            % Create ByfactorLabel_2
+            app.ByfactorLabel_2 = uilabel(app.UIFigure);
+            app.ByfactorLabel_2.HorizontalAlignment = 'center';
+            app.ByfactorLabel_2.Enable = 'off';
+            app.ByfactorLabel_2.Visible = 'off';
+            app.ByfactorLabel_2.Position = [916 236 53 22];
+            app.ByfactorLabel_2.Text = 'By factor';
+
+            % Create AboutpointLabel_2
+            app.AboutpointLabel_2 = uilabel(app.UIFigure);
+            app.AboutpointLabel_2.HorizontalAlignment = 'center';
+            app.AboutpointLabel_2.Enable = 'off';
+            app.AboutpointLabel_2.Visible = 'off';
+            app.AboutpointLabel_2.Position = [915 109 66 22];
+            app.AboutpointLabel_2.Text = 'About point';
+
+            % Create SideLengthEditFieldLabel
+            app.SideLengthEditFieldLabel = uilabel(app.UIFigure);
+            app.SideLengthEditFieldLabel.HorizontalAlignment = 'right';
+            app.SideLengthEditFieldLabel.Enable = 'off';
+            app.SideLengthEditFieldLabel.Position = [573 516 70 22];
+            app.SideLengthEditFieldLabel.Text = 'Side Length';
+
+            % Create SideLengthEditField
+            app.SideLengthEditField = uieditfield(app.UIFigure, 'numeric');
+            app.SideLengthEditField.ValueChangedFcn = createCallbackFcn(app, @SideLengthEditFieldValueChanged, true);
+            app.SideLengthEditField.Enable = 'off';
+            app.SideLengthEditField.Position = [658 516 100 22];
+        end
+    end
+
+    methods (Access = public)
+
+        % Construct app
+        function app = polygon
+
+            % Create and configure components
+            createComponents(app)
+
+            % Register the app with App Designer
+            registerApp(app, app.UIFigure)
+
+            if nargout == 0
+                clear app
+            end
+        end
+
+        % Code that executes before app deletion
+        function delete(app)
+
+            % Delete UIFigure when app is deleted
+            delete(app.UIFigure)
+        end
+    end
+end]]></w:t></w:r></w:p></w:body></w:document>

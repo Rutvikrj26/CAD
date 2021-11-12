@@ -1,0 +1,321 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no" ?><w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:body><w:p><w:pPr><w:pStyle w:val="code"/></w:pPr><w:r><w:t><![CDATA[classdef curves < matlab.apps.AppBase
+
+    % Properties that correspond to app components
+    properties (Access = public)
+        UIFigure                    matlab.ui.Figure
+        PlotButton                  matlab.ui.control.Button
+        ClearButton                 matlab.ui.control.Button
+        ClearPlotButton             matlab.ui.control.Button
+        StatusEditFieldLabel        matlab.ui.control.Label
+        StatusEditField             matlab.ui.control.EditField
+        TypeofSurfaceDropDownLabel  matlab.ui.control.Label
+        TypeofSurfaceDropDown       matlab.ui.control.DropDown
+        EditFieldLabel              matlab.ui.control.Label
+        EditField                   matlab.ui.control.NumericEditField
+        EditField_2Label            matlab.ui.control.Label
+        EditField_2                 matlab.ui.control.NumericEditField
+        EditField_3Label            matlab.ui.control.Label
+        EditField_3                 matlab.ui.control.NumericEditField
+        UITable                     matlab.ui.control.Table
+        UIAxes                      matlab.ui.control.UIAxes
+    end
+
+    
+    methods (Access = private)
+        
+        function circle(app)
+            r = app.EditField.Value;
+            n=33;
+            dt=2*pi/(n-1);
+            sdt=sin(dt);
+            cdt=cos(dt);
+            xo=r;
+            yo=r;
+            for i = 1:n
+                x(i)=xo*cdt-yo*sdt;
+                y(i)=xo*sdt+yo*cdt;
+                xo=x(i);
+                yo=y(i);
+            end
+            plot(app.UIAxes,x,y)
+        end
+        function ellipse(app)
+            a = app.EditField.Value;
+            b = app.EditField_2.Value;
+            n=33;
+            dt=2*pi/(n-1);
+            sdt=sin(dt);
+            cdt=cos(dt);
+            xo=1.0;
+            yo=1.0;
+            for i=1:n
+            x(i)=xo*cdt-a/b*yo*sdt;
+            y(i)=xo*b/a*sdt+yo*cdt;
+            xo=x(i);
+            yo=y(i);
+            end
+            plot(app.UIAxes,x,y)
+        end
+        function cyl_helix(app)
+            a = app.EditField.Value;
+            b = app.EditField_2.Value;
+            H = app.EditField_3.Value;
+            theta = 0:pi/180:H;
+            Pz = theta;
+            Py = (b*sin(theta));
+            Px = (a*cos(theta));
+            plot3(app.UIAxes,Px,Py,Pz)
+        end
+        function con_helix(app)
+            a = app.EditField.Value;
+            b = app.EditField_2.Value;
+            H = app.EditField_3.Value;
+            theta = 0:pi/180:H;
+            Pz = theta;
+            Py = (b*sin(theta)).*theta;
+            Px = (a*cos(theta)).*theta;
+            plot3(app.UIAxes,Px,Py,Pz)
+        end
+    end
+    
+
+    % Callbacks that handle component events
+    methods (Access = private)
+
+        % Value changed function: TypeofSurfaceDropDown
+        function TypeofSurfaceDropDownValueChanged(app, event)
+            value = app.TypeofSurfaceDropDown.Value;
+            if strcmp(value,'Select')
+                app.EditField.Visible = 'off';
+                app.EditFieldLabel.Visible = 'off';
+                app.EditField_2.Visible = 'off';
+                app.EditField_2Label.Visible = 'off';
+                app.EditField_3.Visible = 'off';
+                app.EditField_3Label.Visible = 'off';
+                app.UITable.Visible = 'off';
+            elseif strcmp(value,'Ellipse')
+                app.EditField.Visible = 'on';
+                app.EditFieldLabel.Visible = 'on';
+                app.EditFieldLabel.Text = "Minor axis";
+                app.EditField_2.Visible = 'on';
+                app.EditField_2Label.Visible = 'on';
+                app.EditField_2Label.Text = "Major axis";
+                app.EditField_3.Visible = 'off';
+                app.EditField_3Label.Visible = 'off';
+                app.UITable.Visible = 'off';
+            elseif strcmp(value,'Cylindrical Helix')
+                app.EditField.Visible = 'on';
+                app.EditFieldLabel.Visible = 'on';
+                app.EditFieldLabel.Text = "Minor axis";
+                app.EditField_2.Visible = 'on';
+                app.EditField_2Label.Visible = 'on';
+                app.EditField_2Label.Text = "Major axis";
+                app.EditField_3.Visible = 'on';
+                app.EditField_3Label.Visible = 'on';
+                app.EditField_3Label.Text = "Radius";
+                app.UITable.Visible = 'off';
+            elseif strcmp(value,'Circle')
+                app.EditField.Visible = 'on';
+                app.EditFieldLabel.Visible = 'on';
+                app.EditFieldLabel.Text = "Radius ";
+                app.EditField_2.Visible = 'off';
+                app.EditField_2Label.Visible = 'off';
+                app.EditField_3.Visible = 'off';
+                app.EditField_3Label.Visible = 'off';
+                app.UITable.Visible = 'off';
+            elseif strcmp(value,'Conical Helix')
+                app.EditField.Visible = 'on';
+                app.EditFieldLabel.Visible = 'on';
+                app.EditFieldLabel.Text = "Minor axis";
+                app.EditField_2.Visible = 'on';
+                app.EditField_2Label.Visible = 'on';
+                app.EditField_2Label.Text = "Major axis";
+                app.EditField_3.Visible = 'on';
+                app.EditField_3Label.Visible = 'on';
+                app.EditField_3Label.Text = "Radius";
+                app.UITable.Visible = 'off';
+            end
+        end
+
+        % Button pushed function: PlotButton
+        function PlotButtonPushed(app, event)
+            value = app.TypeofSurfaceDropDown.Value;
+            if strcmp(value,'Select')
+                app.StatusEditField.Value = "Select a Type";
+            elseif strcmp(value,'Ellipse')
+                app.ellipse
+                app.StatusEditField.Value = "Done";
+            elseif strcmp(value,'Cylindrical Helix')
+                app.cyl_helix
+                app.StatusEditField.Value = "Done";
+            elseif strcmp(value,'Circle')
+                app.circle
+                app.StatusEditField.Value = "Done";
+            elseif strcmp(value,'Conical Helix')
+                app.con_helix
+                app.StatusEditField.Value = "Done";
+            end
+        end
+
+        % Button pushed function: ClearPlotButton
+        function ClearPlotButtonPushed(app, event)
+            app.UIAxes.cla
+        end
+
+        % Button pushed function: ClearButton
+        function ClearButtonPushed(app, event)
+            app.UIAxes.cla
+            app.TypeofSurfaceDropDown.Value = "Select";
+            app.EditField.Visible = 'off';
+            app.EditFieldLabel.Visible = 'off';
+            app.EditField_2.Visible = 'off';
+            app.EditField_2Label.Visible = 'off';
+            app.EditField_3.Visible = 'off';
+            app.EditField_3Label.Visible = 'off';
+            app.UITable.Visible = 'off';
+            app.EditField.Value = 0;
+            app.EditField_2.Value = 0;
+            app.EditField_3.Value = 0;
+            app.UITable.Data = zeros(4,3);
+        end
+    end
+
+    % Component initialization
+    methods (Access = private)
+
+        % Create UIFigure and components
+        function createComponents(app)
+
+            % Create UIFigure and hide until all components are created
+            app.UIFigure = uifigure('Visible', 'off');
+            app.UIFigure.Position = [100 100 844 441];
+            app.UIFigure.Name = 'UI Figure';
+
+            % Create PlotButton
+            app.PlotButton = uibutton(app.UIFigure, 'push');
+            app.PlotButton.ButtonPushedFcn = createCallbackFcn(app, @PlotButtonPushed, true);
+            app.PlotButton.Position = [30 89 100 22];
+            app.PlotButton.Text = 'Plot';
+
+            % Create ClearButton
+            app.ClearButton = uibutton(app.UIFigure, 'push');
+            app.ClearButton.ButtonPushedFcn = createCallbackFcn(app, @ClearButtonPushed, true);
+            app.ClearButton.Position = [272 89 100 22];
+            app.ClearButton.Text = 'Reset';
+
+            % Create ClearPlotButton
+            app.ClearPlotButton = uibutton(app.UIFigure, 'push');
+            app.ClearPlotButton.ButtonPushedFcn = createCallbackFcn(app, @ClearPlotButtonPushed, true);
+            app.ClearPlotButton.Position = [152 89 100 22];
+            app.ClearPlotButton.Text = 'Clear Plot';
+
+            % Create StatusEditFieldLabel
+            app.StatusEditFieldLabel = uilabel(app.UIFigure);
+            app.StatusEditFieldLabel.HorizontalAlignment = 'right';
+            app.StatusEditFieldLabel.Position = [30 33 39 22];
+            app.StatusEditFieldLabel.Text = 'Status';
+
+            % Create StatusEditField
+            app.StatusEditField = uieditfield(app.UIFigure, 'text');
+            app.StatusEditField.Editable = 'off';
+            app.StatusEditField.Position = [84 33 288 22];
+
+            % Create TypeofSurfaceDropDownLabel
+            app.TypeofSurfaceDropDownLabel = uilabel(app.UIFigure);
+            app.TypeofSurfaceDropDownLabel.HorizontalAlignment = 'right';
+            app.TypeofSurfaceDropDownLabel.Position = [99 390 90 22];
+            app.TypeofSurfaceDropDownLabel.Text = 'Type of Surface';
+
+            % Create TypeofSurfaceDropDown
+            app.TypeofSurfaceDropDown = uidropdown(app.UIFigure);
+            app.TypeofSurfaceDropDown.Items = {'Select', 'Circle', 'Ellipse', 'Cylindrical Helix', 'Conical Helix'};
+            app.TypeofSurfaceDropDown.ValueChangedFcn = createCallbackFcn(app, @TypeofSurfaceDropDownValueChanged, true);
+            app.TypeofSurfaceDropDown.Position = [204 390 100 22];
+            app.TypeofSurfaceDropDown.Value = 'Select';
+
+            % Create EditFieldLabel
+            app.EditFieldLabel = uilabel(app.UIFigure);
+            app.EditFieldLabel.HorizontalAlignment = 'center';
+            app.EditFieldLabel.Visible = 'off';
+            app.EditFieldLabel.Position = [97 272 101 22];
+            app.EditFieldLabel.Text = 'Edit Field';
+
+            % Create EditField
+            app.EditField = uieditfield(app.UIFigure, 'numeric');
+            app.EditField.Visible = 'off';
+            app.EditField.Position = [209 272 97 22];
+
+            % Create EditField_2Label
+            app.EditField_2Label = uilabel(app.UIFigure);
+            app.EditField_2Label.HorizontalAlignment = 'center';
+            app.EditField_2Label.Visible = 'off';
+            app.EditField_2Label.Position = [96 213 101 22];
+            app.EditField_2Label.Text = 'Edit Field';
+
+            % Create EditField_2
+            app.EditField_2 = uieditfield(app.UIFigure, 'numeric');
+            app.EditField_2.Visible = 'off';
+            app.EditField_2.Position = [208 213 97 22];
+
+            % Create EditField_3Label
+            app.EditField_3Label = uilabel(app.UIFigure);
+            app.EditField_3Label.HorizontalAlignment = 'center';
+            app.EditField_3Label.Visible = 'off';
+            app.EditField_3Label.Position = [97 156 101 22];
+            app.EditField_3Label.Text = 'Edit Field';
+
+            % Create EditField_3
+            app.EditField_3 = uieditfield(app.UIFigure, 'numeric');
+            app.EditField_3.Visible = 'off';
+            app.EditField_3.Position = [209 156 97 22];
+
+            % Create UITable
+            app.UITable = uitable(app.UIFigure);
+            app.UITable.ColumnName = {'X'; 'Y'; 'Z'};
+            app.UITable.RowName = {};
+            app.UITable.ColumnEditable = true;
+            app.UITable.Visible = 'off';
+            app.UITable.Position = [51 127 302 194];
+
+            % Create UIAxes
+            app.UIAxes = uiaxes(app.UIFigure);
+            xlabel(app.UIAxes, 'X')
+            ylabel(app.UIAxes, 'Y')
+            app.UIAxes.View = [45 45];
+            app.UIAxes.DataAspectRatio = [1 1 1];
+            app.UIAxes.PlotBoxAspectRatio = [1 1 1];
+            app.UIAxes.XGrid = 'on';
+            app.UIAxes.YGrid = 'on';
+            app.UIAxes.ZGrid = 'on';
+            app.UIAxes.Position = [399 33 424 382];
+
+            % Show the figure after all components are created
+            app.UIFigure.Visible = 'on';
+        end
+    end
+
+    % App creation and deletion
+    methods (Access = public)
+
+        % Construct app
+        function app = curves
+
+            % Create UIFigure and components
+            createComponents(app)
+
+            % Register the app with App Designer
+            registerApp(app, app.UIFigure)
+
+            if nargout == 0
+                clear app
+            end
+        end
+
+        % Code that executes before app deletion
+        function delete(app)
+
+            % Delete UIFigure when app is deleted
+            delete(app.UIFigure)
+        end
+    end
+end]]></w:t></w:r></w:p></w:body></w:document>

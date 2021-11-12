@@ -1,0 +1,374 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no" ?><w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:body><w:p><w:pPr><w:pStyle w:val="code"/></w:pPr><w:r><w:t><![CDATA[classdef surofrev < matlab.apps.AppBase
+
+    % Properties that correspond to app components
+    properties (Access = public)
+        UIFigure                     matlab.ui.Figure
+        PlotButton                   matlab.ui.control.Button
+        ClearButton                  matlab.ui.control.Button
+        ClearPlotButton              matlab.ui.control.Button
+        StatusEditFieldLabel         matlab.ui.control.Label
+        StatusEditField              matlab.ui.control.EditField
+        TypeofSurfaceDropDownLabel   matlab.ui.control.Label
+        TypeofSurfaceDropDown        matlab.ui.control.DropDown
+        MeshRefinmentEditFieldLabel  matlab.ui.control.Label
+        MeshRefinmentEditField       matlab.ui.control.NumericEditField
+        EditFieldLabel               matlab.ui.control.Label
+        EditField                    matlab.ui.control.NumericEditField
+        EditField_2Label             matlab.ui.control.Label
+        EditField_2                  matlab.ui.control.NumericEditField
+        EditField_3Label             matlab.ui.control.Label
+        EditField_3                  matlab.ui.control.NumericEditField
+        UITable                      matlab.ui.control.Table
+        UIAxes                       matlab.ui.control.UIAxes
+    end
+
+    
+    methods (Access = private)
+        
+        function sphere(app)
+            ref = app.MeshRefinmentEditField.Value;
+            r = app.EditField.Value;
+            [u w] = meshgrid(0:ref:1);
+            theta = pi*u;
+            phi = 2*pi*w;
+            Pz = r*cos(theta);
+            Py = r*sin(theta).*cos(phi);
+            Px = r*sin(theta).*sin(phi);
+            surf(app.UIAxes,Px,Py,Pz)
+        end
+        function ellipsoid(app)
+            ref = app.MeshRefinmentEditField.Value;
+            a = app.EditField.Value;
+            b = app.EditField_2.Value;
+            [u w] = meshgrid(0:ref:1);
+            theta = pi*u;
+            phi = 2*pi*w;
+            Pz = a*cos(theta);
+            Py = b*sin(theta).*cos(phi);
+            Px = b*sin(theta).*sin(phi);
+            surf(app.UIAxes,Px,Py,Pz)
+        end
+        function Torus(app)
+            ref = app.MeshRefinmentEditField.Value;
+            a = app.EditField.Value;
+            b = app.EditField_2.Value;
+            R = app.EditField_3.Value;
+            [u w] = meshgrid(0:ref:1);
+            theta = 2*pi*u;
+            phi = 2*pi*w;
+            Pz = a*cos(theta);
+            Py = (R+ b*sin(theta)).*cos(phi);
+            Px = (R + b*sin(theta)).*sin(phi);
+            surf(app.UIAxes,Px,Py,Pz)
+        end
+        function bilinear(app)
+            ref = app.MeshRefinmentEditField.Value;
+            P = app.UITable.Data;
+            [u w] = meshgrid(0:ref:1);
+            F1 = (1 - u).*(1 - w);
+            F2 = (1 - u).*(w);
+            F3 = (u).*(1 - w);
+            F4 = (u).*(w);
+            Px = P(1,1).*F1 + P(2,1).*F2 + P(3,1).*F3 + P(4,1).*F4;
+            Py = P(1,2).*F1 + P(2,2).*F2 + P(3,2).*F3 + P(4,2).*F4;
+            Pz = P(1,3).*F1 + P(2,3).*F2 + P(3,3).*F3 + P(4,3).*F4;
+            surf(app.UIAxes,Px,Py,Pz)
+        end
+        function Ruled(app)
+            ref = app.MeshRefinmentEditField.Value;
+            val = app.UITable.Data;
+            Pts  = val(1:4,:);
+            Tan = val(5:8,:);
+            [u w] = meshgrid(0:ref:1);
+            F1 = @(t) 2*(t.^3) - 3*(t.^2) + 1;
+            F2 = @(t) -2*(t.^3) + 3*(t.^2);
+            F3 = @(t) (t.^3) - 2*(t.^2) + t;
+            F4 = @(t) (t.^3) - (t.^2);
+            f1 = F1(u);
+            f2 = F2(u);
+            f3 = F3(u);
+            f4 = F4(u);
+            P0x = f1*Pts(1,1) + f2*Pts(2,1) + f3*Tan(1,1) + f4*Tan(2,1);
+            P0y = f1*Pts(1,2) + f2*Pts(2,2) + f3*Tan(1,2) + f4*Tan(2,2);
+            P0z = f1*Pts(1,3) + f2*Pts(2,3) + f3*Tan(1,3) + f4*Tan(2,3);
+            P1x = f1*Pts(3,1) + f2*Pts(4,1) + f3*Tan(3,1) + f4*Tan(4,1);
+            P1y = f1*Pts(3,2) + f2*Pts(4,2) + f3*Tan(3,2) + f4*Tan(4,2);
+            P1z = f1*Pts(3,3) + f2*Pts(4,3) + f3*Tan(3,3) + f4*Tan(4,3);
+            Px = P0x.*(1-w) + P1x.*(w);
+            Py = P0y.*(1-w) + P1y.*(w);
+            Pz = P0z.*(1-w) + P1z.*(w);
+            surf(app.UIAxes,Px,Py,Pz)
+            hold(app.UIAxes,'on')
+            plot3(app.UIAxes,P0x(1,:),P0y(1,:),P0z(1,:),'red')
+            hold(app.UIAxes,'on')
+            plot3(app.UIAxes,P1x(1,:),P1y(1,:),P1z(1,:),'red')
+        end
+    end
+    
+
+    % Callbacks that handle component events
+    methods (Access = private)
+
+        % Value changed function: TypeofSurfaceDropDown
+        function TypeofSurfaceDropDownValueChanged(app, event)
+            value = app.TypeofSurfaceDropDown.Value;
+            if strcmp(value,'Select')
+                app.EditField.Visible = 'off';
+                app.EditFieldLabel.Visible = 'off';
+                app.EditField_2.Visible = 'off';
+                app.EditField_2Label.Visible = 'off';
+                app.EditField_3.Visible = 'off';
+                app.EditField_3Label.Visible = 'off';
+                app.UITable.Visible = 'off';
+            elseif strcmp(value,'Ellipsoid')
+                app.EditField.Visible = 'on';
+                app.EditFieldLabel.Visible = 'on';
+                app.EditFieldLabel.Text = "Minor axis";
+                app.EditField_2.Visible = 'on';
+                app.EditField_2Label.Visible = 'on';
+                app.EditField_2Label.Text = "Major axis";
+                app.EditField_3.Visible = 'off';
+                app.EditField_3Label.Visible = 'off';
+                app.UITable.Visible = 'off';
+            elseif strcmp(value,'Torus')
+                app.EditField.Visible = 'on';
+                app.EditFieldLabel.Visible = 'on';
+                app.EditFieldLabel.Text = "Minor axis";
+                app.EditField_2.Visible = 'on';
+                app.EditField_2Label.Visible = 'on';
+                app.EditField_2Label.Text = "Major axis";
+                app.EditField_3.Visible = 'on';
+                app.EditField_3Label.Visible = 'on';
+                app.EditField_3Label.Text = "Radius";
+                app.UITable.Visible = 'off';
+            elseif strcmp(value,'Sphere')
+                app.EditField.Visible = 'on';
+                app.EditFieldLabel.Visible = 'on';
+                app.EditFieldLabel.Text = "Radius ";
+                app.EditField_2.Visible = 'off';
+                app.EditField_2Label.Visible = 'off';
+                app.EditField_3.Visible = 'off';
+                app.EditField_3Label.Visible = 'off';
+                app.UITable.Visible = 'off';
+            elseif strcmp(value,'Bilinear')
+                app.EditField.Visible = 'off';
+                app.EditFieldLabel.Visible = 'off';
+                app.EditField_2.Visible = 'off';
+                app.EditField_2Label.Visible = 'off';
+                app.EditField_3.Visible = 'off';
+                app.EditField_3Label.Visible = 'off';
+                app.UITable.Visible = 'on';
+                app.UITable.Data = zeros(4,3);
+                app.UITable.RowName = ['P(0 0)';'P(0 1)';'P(1 0)';'P(1 1)'];
+            elseif strcmp(value,'Ruled')
+                app.EditField.Visible = 'off';
+                app.EditFieldLabel.Visible = 'off';
+                app.EditField_2.Visible = 'off';
+                app.EditField_2Label.Visible = 'off';
+                app.EditField_3.Visible = 'off';
+                app.EditField_3Label.Visible = 'off';
+                app.UITable.Visible = 'on';
+                app.UITable.Data = zeros(8,3);
+                app.UITable.RowName = ['P(0 0)';'P(0 1)';'P(1 0)';'P(1 1)';'T(0 0)';'T(0 1)';'T(1 0)';'T(1 1)'];
+            end
+        end
+
+        % Button pushed function: PlotButton
+        function PlotButtonPushed(app, event)
+            value = app.TypeofSurfaceDropDown.Value;
+            if strcmp(value,'Select')
+                app.StatusEditField.Value = "Select a Type";
+            elseif app.MeshRefinmentEditField.Value <= 0 || app.MeshRefinmentEditField.Value >= 1
+                app.StatusEditField.Value = "Enter Refinment value between (0,1)";
+            elseif strcmp(value,'Ellipsoid')
+                app.ellipsoid
+                app.StatusEditField.Value = "Done";
+            elseif strcmp(value,'Torus')
+                app.Torus
+                app.StatusEditField.Value = "Done";
+            elseif strcmp(value,'Sphere')
+                app.sphere
+                app.StatusEditField.Value = "Done";
+            elseif strcmp(value,'Bilinear')
+                app.bilinear
+                app.StatusEditField.Value = "Done";
+            elseif strcmp(value,'Ruled')
+                app.Ruled
+                app.StatusEditField.Value = "Done";
+            end
+        end
+
+        % Button pushed function: ClearPlotButton
+        function ClearPlotButtonPushed(app, event)
+            app.UIAxes.cla
+        end
+
+        % Button pushed function: ClearButton
+        function ClearButtonPushed(app, event)
+            app.UIAxes.cla
+            app.MeshRefinmentEditField.Value = 0;
+            app.TypeofSurfaceDropDown.Value = "Select";
+            app.EditField.Visible = 'off';
+            app.EditFieldLabel.Visible = 'off';
+            app.EditField_2.Visible = 'off';
+            app.EditField_2Label.Visible = 'off';
+            app.EditField_3.Visible = 'off';
+            app.EditField_3Label.Visible = 'off';
+            app.UITable.Visible = 'off';
+            app.EditField.Value = 0;
+            app.EditField_2.Value = 0;
+            app.EditField_3.Value = 0;
+            app.UITable.Data = zeros(4,3);
+        end
+    end
+
+    % Component initialization
+    methods (Access = private)
+
+        % Create UIFigure and components
+        function createComponents(app)
+
+            % Create UIFigure and hide until all components are created
+            app.UIFigure = uifigure('Visible', 'off');
+            app.UIFigure.Position = [100 100 844 441];
+            app.UIFigure.Name = 'UI Figure';
+
+            % Create PlotButton
+            app.PlotButton = uibutton(app.UIFigure, 'push');
+            app.PlotButton.ButtonPushedFcn = createCallbackFcn(app, @PlotButtonPushed, true);
+            app.PlotButton.Position = [30 89 100 22];
+            app.PlotButton.Text = 'Plot';
+
+            % Create ClearButton
+            app.ClearButton = uibutton(app.UIFigure, 'push');
+            app.ClearButton.ButtonPushedFcn = createCallbackFcn(app, @ClearButtonPushed, true);
+            app.ClearButton.Position = [272 89 100 22];
+            app.ClearButton.Text = 'Reset';
+
+            % Create ClearPlotButton
+            app.ClearPlotButton = uibutton(app.UIFigure, 'push');
+            app.ClearPlotButton.ButtonPushedFcn = createCallbackFcn(app, @ClearPlotButtonPushed, true);
+            app.ClearPlotButton.Position = [152 89 100 22];
+            app.ClearPlotButton.Text = 'Clear Plot';
+
+            % Create StatusEditFieldLabel
+            app.StatusEditFieldLabel = uilabel(app.UIFigure);
+            app.StatusEditFieldLabel.HorizontalAlignment = 'right';
+            app.StatusEditFieldLabel.Position = [30 33 39 22];
+            app.StatusEditFieldLabel.Text = 'Status';
+
+            % Create StatusEditField
+            app.StatusEditField = uieditfield(app.UIFigure, 'text');
+            app.StatusEditField.Editable = 'off';
+            app.StatusEditField.Position = [84 33 288 22];
+
+            % Create TypeofSurfaceDropDownLabel
+            app.TypeofSurfaceDropDownLabel = uilabel(app.UIFigure);
+            app.TypeofSurfaceDropDownLabel.HorizontalAlignment = 'right';
+            app.TypeofSurfaceDropDownLabel.Position = [99 390 90 22];
+            app.TypeofSurfaceDropDownLabel.Text = 'Type of Surface';
+
+            % Create TypeofSurfaceDropDown
+            app.TypeofSurfaceDropDown = uidropdown(app.UIFigure);
+            app.TypeofSurfaceDropDown.Items = {'Select', 'Sphere', 'Ellipsoid', 'Torus', 'Bilinear', 'Ruled'};
+            app.TypeofSurfaceDropDown.ValueChangedFcn = createCallbackFcn(app, @TypeofSurfaceDropDownValueChanged, true);
+            app.TypeofSurfaceDropDown.Position = [204 390 100 22];
+            app.TypeofSurfaceDropDown.Value = 'Select';
+
+            % Create MeshRefinmentEditFieldLabel
+            app.MeshRefinmentEditFieldLabel = uilabel(app.UIFigure);
+            app.MeshRefinmentEditFieldLabel.HorizontalAlignment = 'right';
+            app.MeshRefinmentEditFieldLabel.Position = [97 343 93 22];
+            app.MeshRefinmentEditFieldLabel.Text = 'Mesh Refinment';
+
+            % Create MeshRefinmentEditField
+            app.MeshRefinmentEditField = uieditfield(app.UIFigure, 'numeric');
+            app.MeshRefinmentEditField.Limits = [0 1];
+            app.MeshRefinmentEditField.Position = [205 343 100 22];
+
+            % Create EditFieldLabel
+            app.EditFieldLabel = uilabel(app.UIFigure);
+            app.EditFieldLabel.HorizontalAlignment = 'center';
+            app.EditFieldLabel.Visible = 'off';
+            app.EditFieldLabel.Position = [97 272 101 22];
+            app.EditFieldLabel.Text = 'Edit Field';
+
+            % Create EditField
+            app.EditField = uieditfield(app.UIFigure, 'numeric');
+            app.EditField.Visible = 'off';
+            app.EditField.Position = [209 272 97 22];
+
+            % Create EditField_2Label
+            app.EditField_2Label = uilabel(app.UIFigure);
+            app.EditField_2Label.HorizontalAlignment = 'center';
+            app.EditField_2Label.Visible = 'off';
+            app.EditField_2Label.Position = [96 213 101 22];
+            app.EditField_2Label.Text = 'Edit Field';
+
+            % Create EditField_2
+            app.EditField_2 = uieditfield(app.UIFigure, 'numeric');
+            app.EditField_2.Visible = 'off';
+            app.EditField_2.Position = [208 213 97 22];
+
+            % Create EditField_3Label
+            app.EditField_3Label = uilabel(app.UIFigure);
+            app.EditField_3Label.HorizontalAlignment = 'center';
+            app.EditField_3Label.Visible = 'off';
+            app.EditField_3Label.Position = [97 156 101 22];
+            app.EditField_3Label.Text = 'Edit Field';
+
+            % Create EditField_3
+            app.EditField_3 = uieditfield(app.UIFigure, 'numeric');
+            app.EditField_3.Visible = 'off';
+            app.EditField_3.Position = [209 156 97 22];
+
+            % Create UITable
+            app.UITable = uitable(app.UIFigure);
+            app.UITable.ColumnName = {'X'; 'Y'; 'Z'};
+            app.UITable.RowName = {};
+            app.UITable.ColumnEditable = true;
+            app.UITable.Visible = 'off';
+            app.UITable.Position = [51 127 302 194];
+
+            % Create UIAxes
+            app.UIAxes = uiaxes(app.UIFigure);
+            xlabel(app.UIAxes, 'X')
+            ylabel(app.UIAxes, 'Y')
+            app.UIAxes.View = [45 45];
+            app.UIAxes.DataAspectRatio = [1 1 1];
+            app.UIAxes.PlotBoxAspectRatio = [1 1 1];
+            app.UIAxes.XGrid = 'on';
+            app.UIAxes.YGrid = 'on';
+            app.UIAxes.ZGrid = 'on';
+            app.UIAxes.Position = [399 33 424 382];
+
+            % Show the figure after all components are created
+            app.UIFigure.Visible = 'on';
+        end
+    end
+
+    % App creation and deletion
+    methods (Access = public)
+
+        % Construct app
+        function app = surofrev
+
+            % Create UIFigure and components
+            createComponents(app)
+
+            % Register the app with App Designer
+            registerApp(app, app.UIFigure)
+
+            if nargout == 0
+                clear app
+            end
+        end
+
+        % Code that executes before app deletion
+        function delete(app)
+
+            % Delete UIFigure when app is deleted
+            delete(app.UIFigure)
+        end
+    end
+end]]></w:t></w:r></w:p></w:body></w:document>

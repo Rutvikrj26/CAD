@@ -1,0 +1,406 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no" ?><w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:body><w:p><w:pPr><w:pStyle w:val="code"/></w:pPr><w:r><w:t><![CDATA[classdef Cad3d < matlab.apps.AppBase
+
+    % Properties that correspond to app components
+    properties (Access = public)
+        UIFigure                      matlab.ui.Figure
+        NumberofpointsLabel           matlab.ui.control.Label
+        NumberofpointsEditField       matlab.ui.control.NumericEditField
+        TypeofCurveDropDownLabel      matlab.ui.control.Label
+        TypeofCurveDropDown           matlab.ui.control.DropDown
+        PlotButton                    matlab.ui.control.Button
+        ClearButton                   matlab.ui.control.Button
+        UITable                       matlab.ui.control.Table
+        ColourEditFieldLabel          matlab.ui.control.Label
+        ColourEditField               matlab.ui.control.EditField
+        UIAxes                        matlab.ui.control.UIAxes
+        ShowcontrolpointsSwitchLabel  matlab.ui.control.Label
+        ShowcontrolpointsSwitch       matlab.ui.control.Switch
+        StatusEditFieldLabel          matlab.ui.control.Label
+        StatusEditField               matlab.ui.control.EditField
+        ControlPointColourEditFieldLabel  matlab.ui.control.Label
+        ControlPointColourEditField   matlab.ui.control.EditField
+        UITable2                      matlab.ui.control.Table
+        HoldonButton                  matlab.ui.control.StateButton
+        Switch                        matlab.ui.control.Switch
+        ClearPlotButton               matlab.ui.control.Button
+    end
+
+    
+    methods (Access = private)
+        
+        function bezier(app)
+            Pts = app.UITable.Data(:,2:4);
+            colour = app.ColourEditField.Value;
+            l = app.NumberofpointsEditField.Value-1;
+            tin = linspace(0,1,99);
+            j{1} = @(t) ((1-t).^(l))*comb(l,0);
+            for k = 2:l
+                i = k-1;
+                j{k} = @(t) (t.^i).*((1-t).^(l-i))*comb(l,i);
+            end
+            j{l+1} = @(t)(t.^l)*comb(l,l);
+            funx = @(t) Pts(1,1)*j{1}(t);
+            funy = @(t) Pts(1,2)*j{1}(t);
+            funz = @(t) Pts(1,3)*j{1}(t);
+            for i = 1:l-1
+                funx = @(t) funx(t) + Pts(i+1,1)*j{i+1}(t);
+                funy = @(t) funy(t) + Pts(i+1,2)*j{i+1}(t);
+                funz = @(t) funz(t) + Pts(i+1,3)*j{i+1}(t);
+            end
+            funx = @(t) funx(t) + Pts(l+1,1)*j{l+1}(t);
+            funy = @(t) funy(t) + Pts(l+1,2)*j{l+1}(t);
+            funz = @(t) funz(t) + Pts(l+1,3)*j{l+1}(t);
+            if strcmp(app.Switch.Value,"2D")
+                plot(app.UIAxes,funx(tin),funy(tin),colour);
+            elseif strcmp(app.Switch.Value,"3D")
+                plot3(app.UIAxes,funx(tin),funy(tin),funz(tin),colour);
+            end
+        end
+        
+        function Cubic(app)
+            Pts = app.UITable.Data(:,2:4);
+            Tan = app.UITable2.Data(:,2:4);
+            n = length(Pts);
+            M = zeros(n);
+            R = zeros(n,3);
+            M(1,1) = 1;
+            R(1,:) = Tan(1,:);
+            M(n,n) = 1;
+            R(n,:) = Tan(2,:);
+            for i = 2:n-1
+                R(i,:) = 3*(Pts(i+1,:) - Pts(i-1,:));
+                M(i,i-1:i+1) = [1 4 1];
+            end
+            Tangent = M\R;
+            app.cubictan(Pts,Tangent);
+        end
+    
+    
+        
+        function cubictan(app,Pts,Tan)
+            n = length(Pts);
+            colour = app.ColourEditField.Value;
+            tin = linspace(0,1,99);
+            F1 = @(t) 2*(t.^3) - 3*(t.^2) + 1;
+            F2 = @(t) -2*(t.^3) + 3*(t.^2);
+            F3 = @(t) (t.^3) - 2*(t.^2) + t;
+            F4 = @(t) (t.^3) - (t.^2);
+            f1 = F1(tin);
+            f2 = F2(tin);
+            f3 = F3(tin);
+            f4 = F4(tin);
+            for i = 1:n-1
+                Px = f1*Pts(i,1) + f2*Pts(i+1,1) + f3*Tan(i,1) + f4*Tan(i+1,1);
+                Py = f1*Pts(i,2) + f2*Pts(i+1,2) + f3*Tan(i,2) + f4*Tan(i+1,2);
+                Pz = f1*Pts(i,3) + f2*Pts(i+1,3) + f3*Tan(i,3) + f4*Tan(i+1,3);
+                if strcmp(app.Switch.Value,"2D")
+                    plot(app.UIAxes,Px,Py,colour);
+                elseif strcmp(app.Switch.Value,"3D")
+                    plot3(app.UIAxes,Px,Py,Pz,colour);
+                end
+                hold(app.UIAxes,'on')
+            end
+        end
+    end
+    
+
+    methods (Access = private)
+
+        % Value changed function: NumberofpointsEditField
+        function NumberofpointsEditFieldValueChanged(app, event)
+            n = app.NumberofpointsEditField.Value;
+            if n == 0
+                app.UITable.Visible = 'Off';
+            else
+                app.UITable.Visible = 'On';
+                r = transpose(linspace(1,n,n));
+                M = zeros(n,4);
+                M(:,1) = r;
+                app.UITable.Data = M;
+            end
+        end
+
+        % Callback function
+        function PlotButtonPushed(app, event)
+            
+        end
+
+        % Callback function
+        function UITableCellSelection(app, event)
+           
+        end
+
+        % Callback function
+        function UITableCellEdit(app, event)
+            
+        end
+
+        % Value changed function: ShowcontrolpointsSwitch
+        function ShowcontrolpointsSwitchValueChanged(app, event)
+            if strcmp(app.ShowcontrolpointsSwitch.Value,"Yes")
+                app.ControlPointColourEditField.Visible = "on";
+                app.ControlPointColourEditFieldLabel.Visible = "on";
+            elseif strcmp(app.ShowcontrolpointsSwitch.Value,"No")
+                app.ControlPointColourEditField.Visible = "off";
+                app.ControlPointColourEditFieldLabel.Visible = "off";
+            end            
+        end
+
+        % Callback function
+        function HoldonButtonPushed(app, event)
+            hold(app.UIAxes, 'on')
+        end
+
+        % Value changed function: TypeofCurveDropDown
+        function TypeofCurveDropDownValueChanged(app, event)
+            value = app.TypeofCurveDropDown.Value;
+            if strcmp(value,"Cubic Curve")
+                app.UITable2.Visible = "on";
+                t = zeros(2,4);
+                t(1,1) = 1;
+                t(2,1) = app.NumberofpointsEditField.Value;
+                app.UITable2.Data = t;
+            else
+                app.UITable2.Visible = "off";
+            end
+        end
+
+        % Button pushed function: PlotButton
+        function PlotButtonPushed2(app, event)
+            if app.HoldonButton.Value
+                hold(app.UIAxes,'on')
+            else
+                app.UIAxes.cla
+            end
+            if app.NumberofpointsEditField.Value == 0
+                app.StatusEditField.FontColor = [1 0 0];
+                app.StatusEditField.Value = "No input points";
+            elseif strcmp(app.TypeofCurveDropDown.Value,"Select")
+                app.StatusEditField.FontColor = [1 0 0];
+                app.StatusEditField.Value = "Select type of curve";
+            elseif strcmp(app.TypeofCurveDropDown.Value,"Bazier Curve")
+                app.bezier
+                Pts = app.UITable.Data(:,2:4);
+                if strcmp(app.ShowcontrolpointsSwitch.Value,"Yes")
+                    hold(app.UIAxes , 'on')
+                    c = app.ControlPointColourEditField.Value + " *";
+                    if strcmp(app.Switch.Value,"2D")
+                        plot(app.UIAxes,Pts(:,1),Pts(:,2),c);
+                    elseif strcmp(app.Switch.Value,"3D")
+                        plot3(app.UIAxes,Pts(:,1),Pts(:,2),Pts(:,3),c);
+                    end
+                end
+                app.StatusEditField.Value = "Done";
+            elseif strcmp(app.TypeofCurveDropDown.Value,"Cubic Curve")
+                app.Cubic;
+                Pts = app.UITable.Data(:,2:4);
+                if strcmp(app.ShowcontrolpointsSwitch.Value,"Yes")
+                    hold(app.UIAxes, 'on')
+                    c = app.ControlPointColourEditField.Value + " *";
+                    if strcmp(app.Switch.Value,"2D")
+                        plot(app.UIAxes,Pts(:,1),Pts(:,2),c);
+                    elseif strcmp(app.Switch.Value,"3D")
+                        plot3(app.UIAxes,Pts(:,1),Pts(:,2),Pts(:,3),c);
+                    end
+                end
+                app.StatusEditField.Value = "Done";
+            end
+        end
+
+        % Value changed function: Switch
+        function SwitchValueChanged(app, event)
+            if strcmp(app.Switch.Value,"2D")
+                app.UITable.ColumnEditable = [false true true false];
+                app.UITable2.ColumnEditable = [false true true false];
+                app.UIAxes.View = [0 90];
+                app.UITable.Data(:,4) = zeros(1,app.NumberofpointsEditField.Value);
+            elseif strcmp(app.Switch.Value,"3D")
+                app.UITable.ColumnEditable = [false true true true];
+                app.UITable2.ColumnEditable = [false true true true];
+                app.UIAxes.View = [45 45];
+            end
+        end
+
+        % Button pushed function: ClearButton
+        function ClearButtonPushed(app, event)
+            app.UIAxes.cla
+            app.NumberofpointsEditField.Value = 0;
+            app.UITable.Visible = 'Off';
+            app.UITable2.Visible = 'Off';
+            app.TypeofCurveDropDown.Value = "Select";
+            app.StatusEditField.Value = '';
+        end
+
+        % Button pushed function: ClearPlotButton
+        function ClearPlotButtonPushed(app, event)
+            app.UIAxes.cla
+        end
+    end
+
+    % App initialization and construction
+    methods (Access = private)
+
+        % Create UIFigure and components
+        function createComponents(app)
+
+            % Create UIFigure
+            app.UIFigure = uifigure;
+            app.UIFigure.Position = [100 100 826 567];
+            app.UIFigure.Name = 'UI Figure';
+
+            % Create NumberofpointsLabel
+            app.NumberofpointsLabel = uilabel(app.UIFigure);
+            app.NumberofpointsLabel.HorizontalAlignment = 'right';
+            app.NumberofpointsLabel.Position = [12 527 102 22];
+            app.NumberofpointsLabel.Text = 'Number of points*';
+
+            % Create NumberofpointsEditField
+            app.NumberofpointsEditField = uieditfield(app.UIFigure, 'numeric');
+            app.NumberofpointsEditField.ValueChangedFcn = createCallbackFcn(app, @NumberofpointsEditFieldValueChanged, true);
+            app.NumberofpointsEditField.Position = [129 527 100 22];
+
+            % Create TypeofCurveDropDownLabel
+            app.TypeofCurveDropDownLabel = uilabel(app.UIFigure);
+            app.TypeofCurveDropDownLabel.HorizontalAlignment = 'right';
+            app.TypeofCurveDropDownLabel.Position = [281 526 80 22];
+            app.TypeofCurveDropDownLabel.Text = 'Type of Curve';
+
+            % Create TypeofCurveDropDown
+            app.TypeofCurveDropDown = uidropdown(app.UIFigure);
+            app.TypeofCurveDropDown.Items = {'Select', 'Cubic Curve', 'Bazier Curve'};
+            app.TypeofCurveDropDown.ValueChangedFcn = createCallbackFcn(app, @TypeofCurveDropDownValueChanged, true);
+            app.TypeofCurveDropDown.Position = [376 526 100 22];
+            app.TypeofCurveDropDown.Value = 'Select';
+
+            % Create PlotButton
+            app.PlotButton = uibutton(app.UIFigure, 'push');
+            app.PlotButton.ButtonPushedFcn = createCallbackFcn(app, @PlotButtonPushed2, true);
+            app.PlotButton.Position = [376 63 100 22];
+            app.PlotButton.Text = 'Plot';
+
+            % Create ClearButton
+            app.ClearButton = uibutton(app.UIFigure, 'push');
+            app.ClearButton.ButtonPushedFcn = createCallbackFcn(app, @ClearButtonPushed, true);
+            app.ClearButton.Position = [715 63 100 22];
+            app.ClearButton.Text = 'Reset';
+
+            % Create UITable
+            app.UITable = uitable(app.UIFigure);
+            app.UITable.ColumnName = {'Point'; 'X'; 'Y'; 'Z'};
+            app.UITable.RowName = {};
+            app.UITable.ColumnEditable = [false true true true];
+            app.UITable.Visible = 'off';
+            app.UITable.Position = [21 270 302 185];
+
+            % Create ColourEditFieldLabel
+            app.ColourEditFieldLabel = uilabel(app.UIFigure);
+            app.ColourEditFieldLabel.HorizontalAlignment = 'right';
+            app.ColourEditFieldLabel.Position = [507 526 41 22];
+            app.ColourEditFieldLabel.Text = 'Colour';
+
+            % Create ColourEditField
+            app.ColourEditField = uieditfield(app.UIFigure, 'text');
+            app.ColourEditField.Position = [563 526 100 22];
+            app.ColourEditField.Value = 'blue';
+
+            % Create UIAxes
+            app.UIAxes = uiaxes(app.UIFigure);
+            xlabel(app.UIAxes, 'X')
+            ylabel(app.UIAxes, 'Y')
+            app.UIAxes.DataAspectRatio = [1 1 1];
+            app.UIAxes.PlotBoxAspectRatio = [1 1 1];
+            app.UIAxes.XGrid = 'on';
+            app.UIAxes.YGrid = 'on';
+            app.UIAxes.ZGrid = 'on';
+            app.UIAxes.View = [45 45];
+            app.UIAxes.Position = [391 93 424 382];
+
+            % Create ShowcontrolpointsSwitchLabel
+            app.ShowcontrolpointsSwitchLabel = uilabel(app.UIFigure);
+            app.ShowcontrolpointsSwitchLabel.HorizontalAlignment = 'center';
+            app.ShowcontrolpointsSwitchLabel.Position = [12 15 110 22];
+            app.ShowcontrolpointsSwitchLabel.Text = 'Show control points';
+
+            % Create ShowcontrolpointsSwitch
+            app.ShowcontrolpointsSwitch = uiswitch(app.UIFigure, 'slider');
+            app.ShowcontrolpointsSwitch.Items = {'No', 'Yes'};
+            app.ShowcontrolpointsSwitch.ValueChangedFcn = createCallbackFcn(app, @ShowcontrolpointsSwitchValueChanged, true);
+            app.ShowcontrolpointsSwitch.Position = [43 52 45 20];
+            app.ShowcontrolpointsSwitch.Value = 'No';
+
+            % Create StatusEditFieldLabel
+            app.StatusEditFieldLabel = uilabel(app.UIFigure);
+            app.StatusEditFieldLabel.HorizontalAlignment = 'right';
+            app.StatusEditFieldLabel.Position = [479 15 39 22];
+            app.StatusEditFieldLabel.Text = 'Status';
+
+            % Create StatusEditField
+            app.StatusEditField = uieditfield(app.UIFigure, 'text');
+            app.StatusEditField.Editable = 'off';
+            app.StatusEditField.Position = [533 15 188 22];
+
+            % Create ControlPointColourEditFieldLabel
+            app.ControlPointColourEditFieldLabel = uilabel(app.UIFigure);
+            app.ControlPointColourEditFieldLabel.HorizontalAlignment = 'right';
+            app.ControlPointColourEditFieldLabel.Visible = 'off';
+            app.ControlPointColourEditFieldLabel.Position = [129 32 114 22];
+            app.ControlPointColourEditFieldLabel.Text = 'Control Point Colour';
+
+            % Create ControlPointColourEditField
+            app.ControlPointColourEditField = uieditfield(app.UIFigure, 'text');
+            app.ControlPointColourEditField.Visible = 'off';
+            app.ControlPointColourEditField.Position = [258 32 100 22];
+            app.ControlPointColourEditField.Value = 'green';
+
+            % Create UITable2
+            app.UITable2 = uitable(app.UIFigure);
+            app.UITable2.ColumnName = {'Tangent'; 'X'; 'Y'; 'Z'};
+            app.UITable2.RowName = {};
+            app.UITable2.ColumnEditable = [false true true true];
+            app.UITable2.Visible = 'off';
+            app.UITable2.Position = [21 130 302 92];
+
+            % Create Switch
+            app.Switch = uiswitch(app.UIFigure, 'slider');
+            app.Switch.Items = {'3D', '2D'};
+            app.Switch.ValueChangedFcn = createCallbackFcn(app, @SwitchValueChanged, true);
+            app.Switch.Position = [720 527 45 20];
+            app.Switch.Value = '3D';
+
+            % Create HoldonButton
+            app.HoldonButton = uibutton(app.UIFigure, 'state');
+            app.HoldonButton.Text = 'Hold on';
+            app.HoldonButton.Position = [489 63 100 22];
+
+            % Create ClearPlotButton
+            app.ClearPlotButton = uibutton(app.UIFigure, 'push');
+            app.ClearPlotButton.ButtonPushedFcn = createCallbackFcn(app, @ClearPlotButtonPushed, true);
+            app.ClearPlotButton.Position = [602 63 100 22];
+            app.ClearPlotButton.Text = 'Clear Plot';
+        end
+    end
+
+    methods (Access = public)
+
+        % Construct app
+        function app = Cad3d
+
+            % Create and configure components
+            createComponents(app)
+
+            % Register the app with App Designer
+            registerApp(app, app.UIFigure)
+
+            if nargout == 0
+                clear app
+            end
+        end
+
+        % Code that executes before app deletion
+        function delete(app)
+
+            % Delete UIFigure when app is deleted
+            delete(app.UIFigure)
+        end
+    end
+end]]></w:t></w:r></w:p></w:body></w:document>
